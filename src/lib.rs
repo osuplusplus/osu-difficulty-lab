@@ -8,6 +8,7 @@ mod index;
 mod mania_analyzer;
 mod mania_export;
 mod mania_index;
+pub mod mania_mma;
 mod mania_normalizer;
 mod mania_storage;
 mod mania_types;
@@ -24,6 +25,11 @@ pub use index::{SimilarityStore, build_main_index, validate_index_coverage};
 pub use mania_analyzer::{ManiaAnalyzeError, ManiaAnalyzer};
 pub use mania_export::{export_mania_csv, export_mania_parquet};
 pub use mania_index::{ManiaSimilarityStore, build_mania_index, validate_mania_index_coverage};
+pub use mania_mma::{
+    MANIA_MMA_ALGORITHM_ID, MANIA_MMA_ALGORITHM_VERSION, MANIA_MMA_SNAPSHOT, ManiaGameMod,
+    ManiaMmaAnalysis, ManiaMmaBar, ManiaMmaCluster, ManiaMmaRecord, MmaFeatures, MmaReport,
+    PatternCluster, analyze as analyze_mania_mma, analyze_record as analyze_mania_mma_record,
+};
 pub use mania_normalizer::{ManiaNormalizer, fit_mania_normalizer, overall_intensity};
 pub use mania_storage::ManiaFeatureStore;
 pub use mania_types::*;
@@ -44,3 +50,5 @@ pub const RAW_FEATURE_FILE: &str = "raw-features.bin";
 pub const MANIA_ANALYZER_VERSION: u32 = 1;
 pub const MANIA_ANALYZER_ALGORITHM_ID: &str = "mania-roxy-interlude-similarity-v1";
 pub const MANIA_RAW_FEATURE_FILE: &str = "mania-raw-features.bin";
+/// Versioned key-pattern records from the osumania_map_analyser port, one per beatmap and clock rate.
+pub const MANIA_MMA_FEATURE_FILE: &str = "mania-mma-features.bin";
