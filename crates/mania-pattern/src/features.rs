@@ -5,19 +5,11 @@
 
 use super::chart::{Chart, NoteType};
 use super::config::CORE_PATTERN_LIST;
-use super::patterns::{
-    CORE_COORDINATION_NAME, CORE_DENSITY_NAME, CORE_WILDCARD_NAME, FoundPattern, find,
-};
+use super::patterns::FoundPattern;
 use super::summary::MmaReport;
 
 /// 时间结构的统计窗口长度。
 pub const WINDOW_MS: f64 = 4000.0;
-
-const LN_CORE_PATTERNS: [&str; 3] = [
-    CORE_COORDINATION_NAME,
-    CORE_DENSITY_NAME,
-    CORE_WILDCARD_NAME,
-];
 
 /// 合并后的键型条，对应 OPP 侧 `displayProjection` 的 bars。
 #[derive(Debug, Clone)]
@@ -171,22 +163,15 @@ pub fn derive(chart: &Chart, report: &MmaReport) -> MmaFeatures {
         window_notes[index] += notes;
     }
 
-    let intervals: Vec<FoundPattern> = find(chart)
-        .into_iter()
-        .filter(|pattern| report.mode_tag != "RC" || !LN_CORE_PATTERNS.contains(&pattern.pattern))
-        .collect();
+    // 键型区间的时间已经是相对首个物件的，直接和相对时长比较，不再减去首物件时间。
+    let intervals: &[FoundPattern] = &report.patterns;
 
     let mut coverage = [0.0_f64; 6];
     for (index, name) in CORE_PATTERN_LIST.iter().enumerate() {
         let spans: Vec<(f64, f64)> = intervals
             .iter()
             .filter(|pattern| pattern.pattern == *name)
-            .map(|pattern| {
-                (
-                    (pattern.start - first_note).max(0.0),
-                    (pattern.end - first_note).min(duration),
-                )
-            })
+            .map(|pattern| (pattern.start.max(0.0), pattern.end.min(duration)))
             .collect();
         coverage[index] = union_length(spans.clone()) / duration;
 
@@ -211,7 +196,7 @@ pub fn derive(chart: &Chart, report: &MmaReport) -> MmaFeatures {
     }
 
     let mut subtype_names: Vec<&'static str> = Vec::new();
-    for pattern in &intervals {
+    for pattern in intervals {
         if let Some(name) = pattern.specific_type
             && !subtype_names.contains(&name)
         {
@@ -224,12 +209,7 @@ pub fn derive(chart: &Chart, report: &MmaReport) -> MmaFeatures {
             let spans: Vec<(f64, f64)> = intervals
                 .iter()
                 .filter(|pattern| pattern.specific_type == Some(name))
-                .map(|pattern| {
-                    (
-                        (pattern.start - first_note).max(0.0),
-                        (pattern.end - first_note).min(duration),
-                    )
-                })
+                .map(|pattern| (pattern.start.max(0.0), pattern.end.min(duration)))
                 .collect();
             (name.to_owned(), union_length(spans) / duration)
         })
@@ -303,12 +283,7 @@ pub fn derive(chart: &Chart, report: &MmaReport) -> MmaFeatures {
         - union_length(
             intervals
                 .iter()
-                .map(|pattern| {
-                    (
-                        (pattern.start - first_note).max(0.0),
-                        (pattern.end - first_note).min(duration),
-                    )
-                })
+                .map(|pattern| (pattern.start.max(0.0), pattern.end.min(duration)))
                 .collect(),
         ) / duration;
 

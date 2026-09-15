@@ -1,7 +1,7 @@
 //! osu!mania 键型记录的回归测试。
 //!
-//! 合成谱面来自 `tests/fixtures/mma/fixture-4k.osu`，期望值是固定版本
-//! osumania_map_analyser 对同一份谱面的输出。夹具是自造的，不包含任何真实谱面内容。
+//! 合成谱面来自 `tests/fixtures/mma/`，期望值是固定版本 osumania_map_analyser 对同一份
+//! 谱面的输出。夹具是自造的，覆盖 4K/6K/7K 与 LN 模式（三者使用不同的细分键型表与倍率）。
 
 use std::path::PathBuf;
 
@@ -10,55 +10,60 @@ use osu_difficulty_lab::{
 };
 use serde_json::Value;
 
+const FIXTURES: [&str; 4] = ["fixture-4k", "fixture-6k", "fixture-7k", "fixture-ln"];
+
 fn fixture(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/mma")
         .join(name)
 }
 
-fn fixture_text() -> String {
-    std::fs::read_to_string(fixture("fixture-4k.osu")).expect("fixture beatmap")
+fn fixture_text(name: &str) -> String {
+    std::fs::read_to_string(fixture(&format!("{name}.osu"))).expect("fixture beatmap")
 }
 
-fn expected() -> Value {
-    let raw =
-        std::fs::read_to_string(fixture("fixture-4k.expected.json")).expect("expected report");
+fn expected(name: &str) -> Value {
+    let raw = std::fs::read_to_string(fixture(&format!("{name}.expected.json")))
+        .expect("expected report");
     serde_json::from_str(&raw).expect("expected report json")
 }
 
-fn assert_close(field: &str, expected: f64, actual: f64) {
+fn assert_close(label: &str, expected: f64, actual: f64) {
     let tolerance = 1e-6_f64.max(expected.abs() * 1e-9);
     assert!(
         (expected - actual).abs() <= tolerance,
-        "{field}: expected {expected} but got {actual}"
+        "{label}: expected {expected} but got {actual}"
     );
 }
 
-fn assert_matches_reference(analysis: &ManiaMmaAnalysis, expected: &Value) {
-    let mode_tag = expected["ModeTag"].as_str().expect("mode tag");
-    assert_eq!(analysis.report.mode_tag, mode_tag, "ModeTag");
+fn assert_matches_reference(label: &str, analysis: &ManiaMmaAnalysis, expected: &Value) {
+    assert_eq!(
+        analysis.report.mode_tag,
+        expected["ModeTag"].as_str().expect("mode tag"),
+        "{label} ModeTag"
+    );
     assert_eq!(
         analysis.report.category,
         expected["Category"].as_str().expect("category"),
-        "Category"
+        "{label} Category"
     );
     assert_close(
-        "LNPercent",
+        &format!("{label} LNPercent"),
         expected["LNPercent"].as_f64().expect("ln percent"),
         analysis.report.ln_percent,
     );
     assert_close(
-        "HBRowRatio",
+        &format!("{label} HBRowRatio"),
         expected["HBRowRatio"].as_f64().expect("hb ratio"),
         analysis.report.hb_row_ratio,
     );
     assert_close(
-        "SVAmount",
+        &format!("{label} SVAmount"),
         expected["SVAmount"].as_f64().expect("sv amount"),
         analysis.report.sv_amount,
     );
     assert_close(
-        "Duration",
+        &format!("{label} Duration"),
         expected["Duration"].as_f64().expect("duration"),
         analysis.report.duration,
     );
@@ -67,37 +72,37 @@ fn assert_matches_reference(analysis: &ManiaMmaAnalysis, expected: &Value) {
     assert_eq!(
         clusters.len(),
         analysis.report.clusters.len(),
-        "cluster count"
+        "{label} cluster count"
     );
     for (index, cluster) in clusters.iter().enumerate() {
         let actual = &analysis.report.clusters[index];
         assert_eq!(
             actual.pattern,
             cluster["Pattern"].as_str().expect("pattern"),
-            "Clusters[{index}].Pattern"
+            "{label} Clusters[{index}].Pattern"
         );
         assert_eq!(
             actual.mixed,
             cluster["Mixed"].as_bool().expect("mixed"),
-            "Clusters[{index}].Mixed"
+            "{label} Clusters[{index}].Mixed"
         );
         assert_close(
-            &format!("Clusters[{index}].Amount"),
+            &format!("{label} Clusters[{index}].Amount"),
             cluster["Amount"].as_f64().expect("amount"),
             actual.amount,
         );
         assert_close(
-            &format!("Clusters[{index}].Importance"),
+            &format!("{label} Clusters[{index}].Importance"),
             cluster["Importance"].as_f64().expect("importance"),
             actual.importance,
         );
         assert_close(
-            &format!("Clusters[{index}].RatingMultiplier"),
+            &format!("{label} Clusters[{index}].RatingMultiplier"),
             cluster["RatingMultiplier"].as_f64().expect("multiplier"),
             actual.rating_multiplier,
         );
         assert_close(
-            &format!("Clusters[{index}].BPM"),
+            &format!("{label} Clusters[{index}].BPM"),
             cluster["BPM"].as_f64().expect("bpm"),
             actual.bpm as f64,
         );
@@ -106,16 +111,16 @@ fn assert_matches_reference(analysis: &ManiaMmaAnalysis, expected: &Value) {
         assert_eq!(
             types.len(),
             actual.specific_types.len(),
-            "Clusters[{index}].SpecificTypes length"
+            "{label} Clusters[{index}].SpecificTypes length"
         );
         for (type_index, entry) in types.iter().enumerate() {
             assert_eq!(
                 actual.specific_types[type_index].0,
                 entry[0].as_str().expect("specific name"),
-                "Clusters[{index}].SpecificTypes[{type_index}]"
+                "{label} Clusters[{index}].SpecificTypes[{type_index}]"
             );
             assert_close(
-                &format!("Clusters[{index}].SpecificTypes[{type_index}].ratio"),
+                &format!("{label} Clusters[{index}].SpecificTypes[{type_index}].ratio"),
                 entry[1].as_f64().expect("specific ratio"),
                 actual.specific_types[type_index].1,
             );
@@ -124,23 +129,56 @@ fn assert_matches_reference(analysis: &ManiaMmaAnalysis, expected: &Value) {
 }
 
 #[test]
-fn key_patterns_match_the_pinned_reference_for_every_clock_rate() {
-    let text = fixture_text();
-    let expected = expected();
-
-    for (key, game_mod) in [
-        ("NM", ManiaGameMod::Nm),
-        ("DT", ManiaGameMod::Dt),
-        ("HT", ManiaGameMod::Ht),
-    ] {
-        let analysis = analyze_mania_mma(&text, game_mod).expect("analysis");
-        assert_matches_reference(&analysis, &expected[key]);
+fn key_patterns_match_the_pinned_reference_for_every_fixture_and_clock_rate() {
+    for name in FIXTURES {
+        let text = fixture_text(name);
+        let expected = expected(name);
+        for (key, game_mod) in [
+            ("NM", ManiaGameMod::Nm),
+            ("DT", ManiaGameMod::Dt),
+            ("HT", ManiaGameMod::Ht),
+        ] {
+            let analysis = analyze_mania_mma(&text, game_mod).expect("analysis");
+            assert_matches_reference(&format!("{name} {key}"), &analysis, &expected[key]);
+        }
     }
 }
 
 #[test]
+fn coverage_is_a_share_of_the_whole_chart() {
+    // 覆盖率是区间并集占首尾音符间时长的比例。键型区间的时间本来就是相对首物件
+    // 的，若再减一次起始时间，覆盖率会被系统性压缩。
+    for name in FIXTURES {
+        let text = fixture_text(name);
+        let analysis = analyze_mania_mma(&text, ManiaGameMod::Nm).expect("analysis");
+        let duration = analysis.report.duration;
+        assert!(duration > 0.0);
+        for (index, value) in analysis.features.coverage.iter().enumerate() {
+            assert!(
+                (0.0..=1.0).contains(value),
+                "{name} coverage[{index}] out of range: {value}"
+            );
+            // 覆盖率 × 全谱时长 = 该类覆盖秒数，不能超过全谱。
+            assert!(
+                value * duration <= duration + 1e-6,
+                "{name} coverage[{index}] exceeds chart duration"
+            );
+        }
+        let total: f64 = analysis.features.coverage.iter().sum();
+        assert!(total > 0.0, "{name} has no coverage at all");
+    }
+}
+
+#[test]
+fn ln_mode_charts_use_the_ln_multiplier_table() {
+    let analysis = analyze_mania_mma(&fixture_text("fixture-ln"), ManiaGameMod::Nm).expect("NM");
+    assert_eq!(analysis.report.mode_tag, "LN");
+    assert!(analysis.report.ln_percent >= 0.9);
+}
+
+#[test]
 fn clock_rates_are_analyzed_separately() {
-    let text = fixture_text();
+    let text = fixture_text("fixture-4k");
     let no_mod = analyze_mania_mma(&text, ManiaGameMod::Nm).expect("NM");
     let double_time = analyze_mania_mma(&text, ManiaGameMod::Dt).expect("DT");
     let half_time = analyze_mania_mma(&text, ManiaGameMod::Ht).expect("HT");
@@ -148,20 +186,8 @@ fn clock_rates_are_analyzed_separately() {
     // 倍率改变的是实际密度与 BPM，不是把 NoMod 特征乘一个系数。
     assert!(double_time.features.peak_nps > no_mod.features.peak_nps);
     assert!(half_time.features.peak_nps < no_mod.features.peak_nps);
-    assert!((no_mod.report.duration - 10250.0).abs() < 1.0);
-    assert!((double_time.report.duration - 6833.0).abs() < 1.0);
-    assert!((half_time.report.duration - 13666.0).abs() < 1.0);
-
-    // 覆盖率是并集占比，可以重叠，不要求和为 1。
-    let total: f64 = no_mod.features.coverage.iter().sum();
-    assert!(total > 0.0);
-    assert!(
-        no_mod
-            .features
-            .coverage
-            .iter()
-            .all(|value| (0.0..=1.0).contains(value))
-    );
+    assert!((half_time.report.duration / no_mod.report.duration - 4.0 / 3.0).abs() < 0.01);
+    assert!((no_mod.report.duration / double_time.report.duration - 1.5).abs() < 0.01);
 }
 
 #[test]
@@ -175,7 +201,7 @@ fn key_pattern_records_round_trip_through_the_store() {
         .expect("raw analysis");
     assert!(store.append_raw(&metadata, &raw).expect("append raw"));
 
-    let text = fixture_text();
+    let text = fixture_text("fixture-4k");
     for game_mod in ManiaGameMod::ALL {
         let record = analyze_mania_mma(&text, game_mod)
             .expect("analysis")

@@ -6,7 +6,7 @@ use super::clustering::{PatternCluster, specific_clusters};
 use super::config::{
     CORE_PATTERN_LIST, HB_ROW_RATIO_THRESHOLD, IMPORTANT_CLUSTER_RATIO, mode_tag_from_ln_ratio,
 };
-use super::patterns::find;
+use super::patterns::{FoundPattern, find};
 use super::primitives::{ln_percent, sv_time};
 
 /// 长按核心键型，RC 谱面会被剔除。
@@ -47,6 +47,8 @@ fn resolve_mode_tag(ln_ratio: f64, hb_ratio: f64) -> &'static str {
 pub struct MmaReport {
     /// 已按重要度降序排列的簇。
     pub clusters: Vec<PatternCluster>,
+    /// 过滤后、聚类前的键型匹配；派生特征复用这批区间，不再重复匹配一次。
+    pub patterns: Vec<FoundPattern>,
     pub category: String,
     pub ln_percent: f64,
     pub hb_row_ratio: f64,
@@ -133,6 +135,7 @@ pub fn from_chart(chart: &Chart) -> MmaReport {
 
     MmaReport {
         clusters: pruned,
+        patterns,
         category,
         ln_percent: ln_ratio,
         hb_row_ratio: hb_ratio,

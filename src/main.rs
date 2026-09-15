@@ -895,11 +895,13 @@ fn run_mania_mma_reanalysis(data_dir: &PathBuf, mods: &str) -> Result<()> {
     let mut failures: Vec<String> = Vec::new();
 
     for (beatmap_id, path) in paths {
-        // 键型记录挂在已分析的谱面校验值上，因此必须先有原始分析。
-        let Ok(metadata) = store.metadata_for(beatmap_id) else {
+        // 键型记录挂在已分析的谱面校验值上，因此必须先有当前版本的原始分析。
+        // 只是 mania_beatmaps 里还有旧行并不够，分析版本变化后必须重新分析。
+        if !store.has_current_analysis(beatmap_id)? {
             missing_raw += 1;
             continue;
-        };
+        }
+        let metadata = store.metadata_for(beatmap_id)?;
         let text = match fs::read_to_string(&path) {
             Ok(text) => text,
             Err(error) => {
