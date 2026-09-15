@@ -224,9 +224,12 @@ impl ManiaFeatureStore {
     }
 
     pub fn mma_records(&self) -> Result<Vec<ManiaMmaRecord>> {
+        // 只返回校验值仍与当前谱面一致的记录，避免谱面被替换后读到旧键型。
         let offsets = self.offsets(
-            "SELECT mma_offset FROM mania_mma_analyses
-             WHERE mma_version=?1 AND status=1 ORDER BY beatmap_id, game_mod",
+            "SELECT a.mma_offset FROM mania_mma_analyses a
+             JOIN mania_beatmaps b ON b.beatmap_id = a.beatmap_id
+             WHERE a.mma_version=?1 AND a.status=1 AND a.checksum = b.checksum
+             ORDER BY a.beatmap_id, a.game_mod",
             &[MANIA_MMA_ALGORITHM_VERSION as i64],
         )?;
         offsets
@@ -670,8 +673,25 @@ fn validate_mma(record: &ManiaMmaRecord) -> Result<()> {
         || !record.sv_amount.is_finite()
         || record.sv_amount < 0.0
         || !record.duration_seconds.is_finite()
+        || record.duration_seconds <= 0.0
     {
         bail!("mania key-pattern record has a non-finite or negative summary value");
+    }
+    if record
+        .intensity
+        .into_iter()
+        .chain(record.temporal)
+        .chain(record.variation)
+        .chain([
+            record.avg_nps,
+            record.peak_nps,
+            record.chord_rate,
+            record.large_chord_rate,
+            record.unclassified,
+        ])
+        .any(|value| !value.is_finite())
+    {
+        bail!("mania key-pattern record has a non-finite derived value");
     }
     if record
         .subtypes
