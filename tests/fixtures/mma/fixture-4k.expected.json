@@ -1,0 +1,170 @@
+{
+ "NM": {
+  "ModeTag": "Mix",
+  "Category": "Coordination",
+  "LNPercent": 0.16129032258064516,
+  "HBRowRatio": 0,
+  "SVAmount": 0,
+  "Duration": 10250,
+  "Clusters": [
+   {
+    "Pattern": "Coordination",
+    "SpecificTypes": [],
+    "RatingMultiplier": 0.75,
+    "BPM": 180,
+    "Mixed": false,
+    "Amount": 3250,
+    "Importance": 438750
+   },
+   {
+    "Pattern": "Chordstream",
+    "SpecificTypes": [
+     [
+      "Jumpstream",
+      1
+     ]
+    ],
+    "RatingMultiplier": 0.65,
+    "BPM": 120,
+    "Mixed": true,
+    "Amount": 5000,
+    "Importance": 390000
+   },
+   {
+    "Pattern": "Density",
+    "SpecificTypes": [],
+    "RatingMultiplier": 0.9,
+    "BPM": 180,
+    "Mixed": false,
+    "Amount": 1666,
+    "Importance": 269892
+   },
+   {
+    "Pattern": "Wildcard",
+    "SpecificTypes": [
+     [
+      "Jacky WC",
+      0.05
+     ]
+    ],
+    "RatingMultiplier": 0.45,
+    "BPM": 180,
+    "Mixed": false,
+    "Amount": 1833,
+    "Importance": 148473
+   }
+  ]
+ },
+ "DT": {
+  "ModeTag": "Mix",
+  "Category": "Coordination",
+  "LNPercent": 0.16129032258064516,
+  "HBRowRatio": 0,
+  "SVAmount": 0,
+  "Duration": 6833,
+  "Clusters": [
+   {
+    "Pattern": "Coordination",
+    "SpecificTypes": [],
+    "RatingMultiplier": 0.75,
+    "BPM": 270,
+    "Mixed": false,
+    "Amount": 2167,
+    "Importance": 438817.5
+   },
+   {
+    "Pattern": "Chordstream",
+    "SpecificTypes": [
+     [
+      "Jumpstream",
+      1
+     ]
+    ],
+    "RatingMultiplier": 0.65,
+    "BPM": 180,
+    "Mixed": true,
+    "Amount": 3333,
+    "Importance": 389961.00000000006
+   },
+   {
+    "Pattern": "Density",
+    "SpecificTypes": [],
+    "RatingMultiplier": 0.9,
+    "BPM": 270,
+    "Mixed": false,
+    "Amount": 1111,
+    "Importance": 269973
+   },
+   {
+    "Pattern": "Wildcard",
+    "SpecificTypes": [
+     [
+      "Jacky WC",
+      0.05
+     ]
+    ],
+    "RatingMultiplier": 0.45,
+    "BPM": 270,
+    "Mixed": false,
+    "Amount": 1222,
+    "Importance": 148473
+   }
+  ]
+ },
+ "HT": {
+  "ModeTag": "Mix",
+  "Category": "Coordination",
+  "LNPercent": 0.16129032258064516,
+  "HBRowRatio": 0,
+  "SVAmount": 0,
+  "Duration": 13666,
+  "Clusters": [
+   {
+    "Pattern": "Coordination",
+    "SpecificTypes": [],
+    "RatingMultiplier": 0.75,
+    "BPM": 135,
+    "Mixed": false,
+    "Amount": 4333,
+    "Importance": 438716.25
+   },
+   {
+    "Pattern": "Chordstream",
+    "SpecificTypes": [
+     [
+      "Jumpstream",
+      1
+     ]
+    ],
+    "RatingMultiplier": 0.65,
+    "BPM": 90,
+    "Mixed": true,
+    "Amount": 6666,
+    "Importance": 389961.00000000006
+   },
+   {
+    "Pattern": "Density",
+    "SpecificTypes": [],
+    "RatingMultiplier": 0.9,
+    "BPM": 135,
+    "Mixed": false,
+    "Amount": 2221,
+    "Importance": 269851.5
+   },
+   {
+    "Pattern": "Wildcard",
+    "SpecificTypes": [
+     [
+      "Jacky WC",
+      0.05
+     ]
+    ],
+    "RatingMultiplier": 0.45,
+    "BPM": 135,
+    "Mixed": false,
+    "Amount": 2444,
+    "Importance": 148473
+   }
+  ]
+ }
+}

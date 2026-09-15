@@ -111,13 +111,13 @@ pub fn calculate_primitives(chart: &Chart) -> Vec<Primitive> {
     }
 
     let mut previous_time = first_note;
-    let mut index = 0usize;
     let left_hand_keys = keys_on_left_hand(chart.keys);
     let mut out = Vec::new();
 
-    for row in chart.notes.iter().skip(1) {
+    // 行号从 1 开始：上游对首个物件之外的所有行编号，跳过的行也占号。
+    for (offset, row) in chart.notes.iter().skip(1).enumerate() {
         let t = row.time;
-        index += 1;
+        let index = offset + 1;
 
         let mut current_row = Vec::new();
         let mut normal_notes = Vec::new();

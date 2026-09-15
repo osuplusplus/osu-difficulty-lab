@@ -207,11 +207,11 @@ fn compare(
     // 派生特征：六类覆盖率、细分键型、强度。
     let expected_core = expected["core"].as_array().cloned().unwrap_or_default();
     if expected_core.len() == 6 {
-        for index in 0..6 {
+        for (index, value) in expected_core.iter().enumerate() {
             out.number(
                 case,
                 &format!("core[{index}]"),
-                expected_core[index].as_f64().unwrap_or_default(),
+                value.as_f64().unwrap_or_default(),
                 actual.features.coverage[index],
             );
         }
@@ -251,11 +251,11 @@ fn compare(
         .cloned()
         .unwrap_or_default();
     if expected_intensity.len() == 4 {
-        for index in 0..4 {
+        for (index, value) in expected_intensity.iter().enumerate() {
             out.number(
                 case,
                 &format!("intensity[{index}]"),
-                expected_intensity[index].as_f64().unwrap_or_default(),
+                value.as_f64().unwrap_or_default(),
                 actual.features.intensity[index],
             );
         }

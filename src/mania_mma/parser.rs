@@ -324,10 +324,10 @@ fn find_bpm_durations(points: &[TimingPoint], end_time: f64) -> Result<Vec<(f64,
 }
 
 /// 对应上游 `convertTimingPoints`。
-fn convert_timing_points(
-    points: &[TimingPoint],
-    end_time: f64,
-) -> Result<(Vec<TimeItem<BpmData>>, Vec<TimeItem<f64>>)> {
+/// 时间点换算结果：BPM 点与 SV 点。
+type ConvertedTiming = (Vec<TimeItem<BpmData>>, Vec<TimeItem<f64>>);
+
+fn convert_timing_points(points: &[TimingPoint], end_time: f64) -> Result<ConvertedTiming> {
     let durations = find_bpm_durations(points, end_time)?;
     // 上游按总时长降序排序后取第一个，排序是稳定的。
     let mut ordered = durations.clone();

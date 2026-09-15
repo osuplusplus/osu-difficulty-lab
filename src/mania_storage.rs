@@ -8,12 +8,14 @@ use anyhow::{Context, Result, bail};
 use rusqlite::{Connection, OptionalExtension, params};
 
 use crate::{
-    MANIA_ANALYZER_ALGORITHM_ID, MANIA_ANALYZER_VERSION, MANIA_RAW_FEATURE_FILE,
-    ManiaBeatmapMetadata, ManiaFeatureRecord, ManiaModeFamily, ManiaPattern, ManiaRawFeatureRecord,
+    MANIA_ANALYZER_ALGORITHM_ID, MANIA_ANALYZER_VERSION, MANIA_MMA_ALGORITHM_VERSION,
+    MANIA_MMA_FEATURE_FILE, MANIA_RAW_FEATURE_FILE, ManiaBeatmapMetadata, ManiaFeatureRecord,
+    ManiaGameMod, ManiaMmaRecord, ManiaModeFamily, ManiaPattern, ManiaRawFeatureRecord,
 };
 
 const RAW_HEADER: &[u8; 8] = b"ODLMAR1\0";
 const NORMALIZED_HEADER: &[u8; 8] = b"ODLMAN1\0";
+const MMA_HEADER: &[u8; 8] = b"ODLMMA1\0";
 
 pub struct ManiaFeatureStore {
     root: PathBuf,
@@ -61,7 +63,19 @@ impl ManiaFeatureStore {
              CREATE TABLE IF NOT EXISTS mania_state (
                key TEXT PRIMARY KEY,
                value TEXT NOT NULL
-             );",
+             );
+             CREATE TABLE IF NOT EXISTS mania_mma_analyses (
+               beatmap_id INTEGER NOT NULL,
+               game_mod TEXT NOT NULL,
+               mma_version INTEGER NOT NULL,
+               checksum TEXT NOT NULL,
+               mma_offset INTEGER NOT NULL,
+               status INTEGER NOT NULL,
+               PRIMARY KEY (beatmap_id, game_mod, mma_version),
+               FOREIGN KEY (beatmap_id) REFERENCES mania_beatmaps(beatmap_id)
+             );
+             CREATE INDEX IF NOT EXISTS idx_mania_mma_analyses_version
+               ON mania_mma_analyses(mma_version, status);",
         )?;
         let store = Self {
             root,
@@ -69,6 +83,7 @@ impl ManiaFeatureStore {
             indexes_invalidated: false,
         };
         store.ensure_header(MANIA_RAW_FEATURE_FILE, RAW_HEADER)?;
+        store.ensure_header(MANIA_MMA_FEATURE_FILE, MMA_HEADER)?;
         Ok(store)
     }
 
@@ -161,6 +176,103 @@ impl ManiaFeatureStore {
         transaction.commit()?;
         self.ensure_indexes_invalidated()?;
         Ok(true)
+    }
+
+    /// 键型记录按谱面 + 时钟倍率保存，因此同一个谱面会有 NM/DT/HT 三条。
+    pub fn current_mma_matches(
+        &self,
+        beatmap_id: u64,
+        checksum: &str,
+        game_mod: ManiaGameMod,
+    ) -> Result<bool> {
+        Ok(self.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM mania_mma_analyses
+              WHERE beatmap_id=?1 AND game_mod=?2 AND mma_version=?3 AND checksum=?4 AND status=1)",
+            params![
+                beatmap_id as i64,
+                game_mod.as_str(),
+                MANIA_MMA_ALGORITHM_VERSION as i64,
+                checksum,
+            ],
+            |row| row.get(0),
+        )?)
+    }
+
+    pub fn append_mma(&mut self, checksum: &str, record: &ManiaMmaRecord) -> Result<bool> {
+        validate_mma(record)?;
+        if self.current_mma_matches(record.beatmap_id, checksum, record.game_mod)? {
+            return Ok(false);
+        }
+        let offset = self.append_record(MANIA_MMA_FEATURE_FILE, MMA_HEADER, record)?;
+        let transaction = self.connection.transaction()?;
+        transaction.execute(
+            "INSERT INTO mania_mma_analyses(
+               beatmap_id,game_mod,mma_version,checksum,mma_offset,status
+             ) VALUES(?1,?2,?3,?4,?5,1)
+             ON CONFLICT(beatmap_id,game_mod,mma_version) DO UPDATE SET
+               checksum=excluded.checksum,mma_offset=excluded.mma_offset,status=1",
+            params![
+                record.beatmap_id as i64,
+                record.game_mod.as_str(),
+                record.algorithm_version as i64,
+                checksum,
+                offset as i64,
+            ],
+        )?;
+        transaction.commit()?;
+        Ok(true)
+    }
+
+    pub fn mma_records(&self) -> Result<Vec<ManiaMmaRecord>> {
+        let offsets = self.offsets(
+            "SELECT mma_offset FROM mania_mma_analyses
+             WHERE mma_version=?1 AND status=1 ORDER BY beatmap_id, game_mod",
+            &[MANIA_MMA_ALGORITHM_VERSION as i64],
+        )?;
+        offsets
+            .into_iter()
+            .map(|offset| self.read_record(MANIA_MMA_FEATURE_FILE, MMA_HEADER, offset))
+            .collect()
+    }
+
+    pub fn mma_for_id(&self, beatmap_id: u64, game_mod: ManiaGameMod) -> Result<ManiaMmaRecord> {
+        let offset: Option<u64> = self
+            .connection
+            .query_row(
+                "SELECT mma_offset FROM mania_mma_analyses
+                 WHERE beatmap_id=?1 AND game_mod=?2 AND mma_version=?3 AND status=1",
+                params![
+                    beatmap_id as i64,
+                    game_mod.as_str(),
+                    MANIA_MMA_ALGORITHM_VERSION as i64,
+                ],
+                |row| row.get(0),
+            )
+            .optional()?;
+        let offset = offset.with_context(|| {
+            format!(
+                "no mania key-pattern record for beatmap {beatmap_id} {}",
+                game_mod.as_str()
+            )
+        })?;
+        self.read_record(MANIA_MMA_FEATURE_FILE, MMA_HEADER, offset)
+    }
+
+    pub fn mma_record_count(&self) -> Result<usize> {
+        Ok(self.connection.query_row(
+            "SELECT COUNT(*) FROM mania_mma_analyses WHERE mma_version=?1 AND status=1",
+            params![MANIA_MMA_ALGORITHM_VERSION as i64],
+            |row| row.get::<_, i64>(0),
+        )? as usize)
+    }
+
+    pub fn mma_record_count_for(&self, game_mod: ManiaGameMod) -> Result<usize> {
+        Ok(self.connection.query_row(
+            "SELECT COUNT(*) FROM mania_mma_analyses
+             WHERE mma_version=?1 AND game_mod=?2 AND status=1",
+            params![MANIA_MMA_ALGORITHM_VERSION as i64, game_mod.as_str()],
+            |row| row.get::<_, i64>(0),
+        )? as usize)
     }
 
     pub fn raw_records(&self) -> Result<Vec<ManiaRawFeatureRecord>> {
@@ -529,6 +641,56 @@ fn validate_raw(metadata: &ManiaBeatmapMetadata, record: &ManiaRawFeatureRecord)
         .any(|value| !value.is_finite() || value < 0.0)
     {
         bail!("mania raw feature is non-finite or outside its declared range");
+    }
+    Ok(())
+}
+
+fn validate_mma(record: &ManiaMmaRecord) -> Result<()> {
+    if record.algorithm_version != MANIA_MMA_ALGORITHM_VERSION {
+        bail!("mania key-pattern record has the wrong algorithm version");
+    }
+    if !matches!(record.key_count, 4 | 6 | 7) {
+        bail!("mania key-pattern record has an unsupported key count");
+    }
+    if !matches!(record.mode_tag.as_str(), "RC" | "HB" | "Mix" | "LN") {
+        bail!("mania key-pattern record has an unknown mode tag");
+    }
+    if record.category.is_empty() {
+        bail!("mania key-pattern record has an empty category");
+    }
+    if record
+        .coverage
+        .into_iter()
+        .any(|value| !value.is_finite() || !(0.0..=1.0).contains(&value))
+    {
+        bail!("mania key-pattern coverage must stay within 0..=1");
+    }
+    if !(0.0..=1.0).contains(&record.ln_note_ratio)
+        || !(0.0..=1.0).contains(&record.hb_row_ratio)
+        || !record.sv_amount.is_finite()
+        || record.sv_amount < 0.0
+        || !record.duration_seconds.is_finite()
+    {
+        bail!("mania key-pattern record has a non-finite or negative summary value");
+    }
+    if record
+        .subtypes
+        .iter()
+        .chain(record.bars.iter().flat_map(|bar| bar.specific_types.iter()))
+        .any(|(_, ratio)| !ratio.is_finite() || !(0.0..=1.0).contains(ratio))
+    {
+        bail!("mania key-pattern subtype ratio must stay within 0..=1");
+    }
+    if record.clusters.iter().any(|cluster| {
+        !cluster.amount.is_finite()
+            || !cluster.importance.is_finite()
+            || !cluster.rating_multiplier.is_finite()
+            || !matches!(
+                cluster.pattern.as_str(),
+                "Stream" | "Chordstream" | "Jacks" | "Coordination" | "Density" | "Wildcard"
+            )
+    }) {
+        bail!("mania key-pattern cluster is malformed");
     }
     Ok(())
 }

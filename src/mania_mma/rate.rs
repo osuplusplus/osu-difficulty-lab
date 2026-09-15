@@ -122,10 +122,10 @@ pub fn transform_rate(text: &str, rate: f64) -> Result<String> {
         } else if section == "[TimingPoints]" && parts.len() >= 2 {
             let mut fields: Vec<String> = parts.iter().map(|part| (*part).to_owned()).collect();
             fields[0] = js_number(time(&fields[0]));
-            if let Ok(value) = fields[1].trim().parse::<f64>() {
-                if value > 0.0 {
-                    fields[1] = js_number(value / rate);
-                }
+            if let Ok(value) = fields[1].trim().parse::<f64>()
+                && value > 0.0
+            {
+                fields[1] = js_number(value / rate);
             }
             out.push(fields.join(","));
         } else if section == "[Events]" && parts.len() >= 3 {
