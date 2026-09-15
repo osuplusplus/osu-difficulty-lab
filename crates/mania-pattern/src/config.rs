@@ -1,7 +1,7 @@
 //! 键型分析的固定参数，对应上游 `js/patterns/config.js`。
 //!
 //! 这里的数值必须与上游保持一致；改动会让历史记录失去可比性，因此需要同时提升
-//! [`crate::mania_types::MANIA_ANALYZER_VERSION`]。
+//! [`MANIA_MMA_ALGORITHM_VERSION`](crate::MANIA_MMA_ALGORITHM_VERSION)。
 
 /// 六大键型的评分倍率，对应 `CORE_RATING_MULTIPLIER`。
 pub fn core_rating_multiplier(pattern: &str) -> f64 {

@@ -8,7 +8,6 @@ mod index;
 mod mania_analyzer;
 mod mania_export;
 mod mania_index;
-pub mod mania_mma;
 mod mania_normalizer;
 mod mania_storage;
 mod mania_types;
@@ -25,12 +24,12 @@ pub use index::{SimilarityStore, build_main_index, validate_index_coverage};
 pub use mania_analyzer::{ManiaAnalyzeError, ManiaAnalyzer};
 pub use mania_export::{export_mania_csv, export_mania_parquet};
 pub use mania_index::{ManiaSimilarityStore, build_mania_index, validate_mania_index_coverage};
-pub use mania_mma::{
+pub use mania_normalizer::{ManiaNormalizer, fit_mania_normalizer, overall_intensity};
+pub use mania_pattern::{
     MANIA_MMA_ALGORITHM_ID, MANIA_MMA_ALGORITHM_VERSION, MANIA_MMA_SNAPSHOT, ManiaGameMod,
     ManiaMmaAnalysis, ManiaMmaBar, ManiaMmaCluster, ManiaMmaRecord, MmaFeatures, MmaReport,
     PatternCluster, analyze as analyze_mania_mma, analyze_record as analyze_mania_mma_record,
 };
-pub use mania_normalizer::{ManiaNormalizer, fit_mania_normalizer, overall_intensity};
 pub use mania_storage::ManiaFeatureStore;
 pub use mania_types::*;
 pub use normalizer::{Normalizer, fit_normalizer};
